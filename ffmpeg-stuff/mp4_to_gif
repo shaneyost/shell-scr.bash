@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# Usage:
+# ./mp4_to_gif.sh input.mp4 output.gif [fps] [scale] [speed]
+
+INPUT="$1"
+OUTPUT="$2"
+FPS="${3:-10}"           # Default: 10 frames per second
+SCALE="${4:-640}"        # Default: 640px width
+SPEED="${5:-0.6}"        # Default: normal speed
+
+if [ -z "$INPUT" ] || [ -z "$OUTPUT" ]; then
+  echo "Usage: $0 input.mp4 output.gif [fps] [scale] [speed]"
+  exit 1
+fi
+
+PALETTE="/tmp/palette.png"
+
+# Generate color palette
+ffmpeg -v warning -i "$INPUT" \
+  -filter_complex "[0:v]setpts=${SPEED}*PTS,fps=${FPS},scale=${SCALE}:-1:flags=lanczos,palettegen" \
+  -y "$PALETTE"
+
+# Generate final GIF using palette
+ffmpeg -v warning -i "$INPUT" -i "$PALETTE" \
+  -filter_complex "[0:v]setpts=${SPEED}*PTS,fps=${FPS},scale=${SCALE}:-1:flags=lanczos[x];[x][1:v]paletteuse" \
+  -y "$OUTPUT"
+
+# Clean up
+rm -f "$PALETTE"
+

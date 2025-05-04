@@ -1,0 +1,50 @@
+#!/bin/bash
+#
+# Requirements
+#   - Must know the name of a file in your share folder to test with
+#
+# Usage
+#   ./wfshelper_unit_test mount /mnt/shares/shared-folder/foo.txt
+#   ./wfshelper_unit_test clean /mnt/shares/shared-folder/foo.txt
+
+set -e
+
+cmd=$1
+fle=$2
+
+# Never run this script as root
+[[ $EUID == 0 ]] && echo "do NOT run as root/sudo" && exit 1
+
+# First clean, run mount test, then clean to clean up
+if [[ $cmd == "mount" ]]; then
+    wfshelper "clean"
+    wfshelper "${cmd}"
+    printf "\n\n"
+    if [[ -f "${fle}" ]]; then
+        printf "Test Passed"
+    else
+        printf "Test Failed"
+    fi
+    printf "\n\n"
+    wfshelper "clean"
+
+# First mount then run clean test
+elif [[ $cmd == "clean" ]]; then
+    wfshelper "mount"
+    printf "\n\n"
+    wfshelper "${cmd}"
+    printf "\n\n"
+    if [[ -f "${fle}" ]]; then
+        printf "Test Failed"
+    else
+        printf "Test Passed"
+    fi
+
+else
+    printf "invalid input"
+fi
+
+
+
+
+

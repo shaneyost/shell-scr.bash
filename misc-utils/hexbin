@@ -1,0 +1,91 @@
+#!/bin/bash
+set -e
+
+
+[[ -z "$1" ]] && echo "no arg" && exit 1
+
+arg=$1
+
+declare -A lut
+lut["0"]="0000"
+lut["1"]="0001"
+lut["2"]="0010"
+lut["3"]="0011"
+lut["4"]="0100"
+lut["5"]="0101"
+lut["6"]="0110"
+lut["7"]="0111"
+lut["8"]="1000"
+lut["9"]="1001"
+lut["a"]="1010"
+lut["b"]="1011"
+lut["c"]="1100"
+lut["d"]="1101"
+lut["e"]="1110"
+lut["f"]="1111"
+lut["A"]="1010"
+lut["B"]="1011"
+lut["C"]="1100"
+lut["D"]="1101"
+lut["E"]="1110"
+lut["F"]="1111"
+
+
+# Strip off prefix if present, account for any wild looking prefix the user might enter
+p=${arg:0:2}
+if [[ $p == "0x"  || $p == "0X" || $p == "ox" || $p == "Ox" || $p == "OX" || $p == "oX" ]]; then
+    arg=${arg:2}
+fi
+
+# Verify hex is not over 8 characters
+if [[ ${#arg} > 8 ]]; then
+    printf "Length of arg is %d, too long!\n" "${#arg}"
+    exit 1
+fi
+
+# Create an ordered array from string, associative arrays will not work
+read -a hex <<< $(echo $arg | sed 's/./& /g')
+#echo "array \"hex\" is... ${hex[*]}"
+
+# Verify characters are base16 or our lookup table will fail
+for val in "${hex[@]}"; do
+    flag=0
+    for key in "${!lut[@]}"; do
+        if [[ $val == $key ]]; then
+            flag=1
+        fi
+    done
+    if [[ $flag == 0 ]]; then
+        printf "Character %s, is not base16!\n" "${val}"
+        exit 1
+    fi
+done
+
+# Build up binary string, may not be 32bits long but will pad it later
+for val in "${hex[@]}"; do
+    for key in "${!lut[@]}"; do
+        if [[ $val == $key ]]; then
+            unpadded_bin_str="${unpadded_bin_str}${lut[$key]}"
+        fi
+    done
+done
+#echo "str \"unpadded_bin_str\" is... ${unpadded_bin_str}"
+
+
+# Determine the amount of padded 0's we need and then pad it
+padding_needed=$((32-${#unpadded_bin_str}))
+for ((i=0; i<$padding_needed; i+=1)); do
+    padding+="0"
+done
+padded_bin_str="${padding}${unpadded_bin_str}"
+
+# Lets do a little string formatting to make it pretty
+printf "33222222 22221111 11111100 00000000\n"
+printf "10987654 32109876 54321098 76543210\n"
+printf "%s " "${padded_bin_str:0:8}" 
+printf "%s " "${padded_bin_str:8:8}" 
+printf "%s " "${padded_bin_str:16:8}" 
+printf "%s " "${padded_bin_str:24:8}"
+printf "\n"
+
+

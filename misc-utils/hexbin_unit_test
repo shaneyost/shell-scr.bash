@@ -1,0 +1,33 @@
+#!/bin/bash
+set -e
+
+declare -A test_cases
+test_cases["0x3f"]="00000000 00000000 00000000 00111111"
+test_cases["0xf3"]="00000000 00000000 00000000 11110011"
+test_cases["f3"]="00000000 00000000 00000000 11110011"
+test_cases["0x1234"]="00000000 00000000 00010010 00110100"
+test_cases["0x4321"]="00000000 00000000 01000011 00100001"
+test_cases["0x12345678"]="00010010 00110100 01010110 01111000"
+test_cases["Ox12345678"]="00010010 00110100 01010110 01111000"
+test_cases["0x87654321"]="10000111 01100101 01000011 00100001"
+test_cases["OX87654321"]="10000111 01100101 01000011 00100001"
+test_cases["0xabcd"]="00000000 00000000 10101011 11001101"
+test_cases["oxABCD"]="00000000 00000000 10101011 11001101"
+test_cases["0xdcba"]="00000000 00000000 11011100 10111010"
+test_cases["0XdCbA"]="00000000 00000000 11011100 10111010"
+
+for key in "${!test_cases[@]}"; do
+    raw=$(./hexbin $key)
+    processed="${raw:72:35}"
+    if [[ "${processed}" == "${test_cases[$key]}" ]]; then
+        echo "pass"
+    else
+        printf "\n\n"
+        printf "%s\n" "Test case for ${key} failed..."
+        printf "\t%s\n" "expect ${test_cases[$key]}"
+        printf "\t%s\n" "actual ${processed}"
+        printf "\n\n"
+    fi
+done
+
+

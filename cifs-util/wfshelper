@@ -1,0 +1,115 @@
+#!/bin/bash
+
+#   About:
+#
+#       Uses cifs to mount window network drives to /mnt on linux
+#
+#   Usage:
+#
+#       <wfshelper mount> - mount the windows share folder
+#       <wfshelper clean> - unmount the windows share folder
+#
+#   Requirements:
+#
+#       - Script requires a password file by default w/ following contents. By 
+#         default I assume the file to be called "~/.credentials"
+#
+#           username=<inputusername>
+#           password=<inputpassword>
+#           domain=<inputdomain>
+#
+#       - If a password file is not desired replace the "credentials" argument
+#         in the below cifs command to be username=<your_username>.
+#
+#       - For home networks you can remove the domain entry in the credentials
+#         file because you'll likely not have a DNS server.
+#
+#   Example Setup:
+#
+#       - Create and enter credentials in the file ~/.credentials
+#
+#           username=my_super_awesome_name
+#           password=my_super_awesome_pass
+#
+#       - Modify the following variables now in this bash script
+#
+#           win_dirs_path="/mnt/shares"
+#           win_cred_file="${HOME}/.credentials"
+#           win_dirs["share-folder"]="//192.168.0.16/share-folder"
+
+# exit on errors
+set -e
+
+# declare some variables upfront
+win_dirs_path="/mnt/shares"
+win_cred_file="${HOME}/.credentials"
+
+# declare some important packages the user needs to install
+packages=(
+	cifs-utils
+	keyutils
+)
+
+# declare an associative array (add to it if needed)
+declare -A win_dirs 
+win_dirs["alias-name"]="//<windows_ip>/share-folder-name"
+
+
+function check_packages_installed () {
+	if [[ "$(which cifscreds)" == "" ]]; then
+		sudo apt install -y ${packages[@]}
+	fi
+}
+
+function check_nothing_is_mounted () {
+	for m in "${!win_dirs[@]}"; do
+		if mount | grep "${win_dirs_path}/${m}" >/dev/null; then
+			printf "cleaning by unmounting ${win_dirs_path}/${m}\n"
+			sudo umount -l ${win_dirs_path}/${m}
+		fi
+	done
+}
+
+function create_windows_shares () {
+	for d in "${!win_dirs[@]}"; do
+		printf "creating mount point ${win_dirs_path}/${d}\n"
+		sudo mkdir -p "${win_dirs_path}/${d}"
+	done
+}
+
+function mount_windows_shares () {
+	for d in "${!win_dirs[@]}"; do
+		printf "mounting ${win_dirs[$d]} ${win_dirs_path}/${d}\n"
+		sudo mount -t cifs -o _netdev,sec=ntlmssp,credentials=${win_cred_file},uid=1000,gid=1000 ${win_dirs[$d]} ${win_dirs_path}/${d}
+	done
+}
+
+
+# ensure we are not running as root
+[[ $EUID == 0 ]] && echo "do NOT run as root/sudo" && exit 1
+
+
+# check for credentials file
+if [[ ! -f "${win_cred_file}" ]]; then
+	printf "The file ${win_cred_file} does not exist, exiting script\n"
+	exit 1
+fi
+
+# install packages if needed
+check_packages_installed
+
+if [[ "$*" == "mount" ]]; then
+    # always unmount first if needed, then mount
+    check_nothing_is_mounted
+    create_windows_shares
+    mount_windows_shares
+elif [[ "$*" == "clean" ]]; then
+    #unmount
+    check_nothing_is_mounted
+else
+    printf "invalid argument, usage...\n\twfshelper mount\n\twfshelper clean"
+    exit 1
+fi
+
+printf "\n"
+printf "done"
